@@ -1,0 +1,95 @@
+{
+  "width": 3,
+  "height": 2,
+  "dark_exposure_s": 1,
+  "dark": [
+    [
+      2,
+      2,
+      2
+    ],
+    [
+      2,
+      2,
+      2
+    ]
+  ],
+  "flat": [
+    [
+      10,
+      10,
+      10
+    ],
+    [
+      10,
+      10,
+      10
+    ]
+  ],
+  "bad_mask": [
+    [
+      false,
+      false,
+      false
+    ],
+    [
+      false,
+      false,
+      false
+    ]
+  ],
+  "frames": [
+    {
+      "id": "exp-A",
+      "exposure_s": 1,
+      "dx": 0,
+      "dy": 0,
+      "saturation": 100,
+      "pixels": [
+        [
+          12,
+          22,
+          32
+        ],
+        [
+          42,
+          52,
+          62
+        ]
+      ]
+    },
+    {
+      "id": "exp-B",
+      "exposure_s": 2,
+      "dx": 1,
+      "dy": 0,
+      "saturation": 100,
+      "pixels": [
+        [
+          24,
+          44,
+          64
+        ],
+        [
+          84,
+          104,
+          124
+        ]
+      ]
+    }
+  ],
+  "apertures": [
+    {
+      "id": "star",
+      "x": 1,
+      "y": 0,
+      "radius": 0
+    },
+    {
+      "id": "edge",
+      "x": 0,
+      "y": 0,
+      "radius": 1
+    }
+  ]
+}
