@@ -1,6 +1,6 @@
 # data-qd-181 · 天文图像标定与叠加
 
-从暗场、平场、曝光和整数注册偏移生成叠加图像、贡献审计及孔径积分。
+从暗场、平场、曝光和整数注册偏移生成叠加图像、贡献审计及孔径积分；可选 campaign 模式从同一批短曝光生成互不重复用帧的时间分辨产品，并给出精确有理数不确定度与跨产品协方差。
 
 ## 独立安装
 
@@ -25,6 +25,14 @@ uv pip check --python .venv/bin/python
 ```
 
 预期：2帧、6个有贡献像素、9次像素贡献；star孔径为40/3单位每秒。
+
+时间分辨 campaign 使用同一命令与新样例：
+
+```sh
+.venv/bin/astro-stack --source fixtures/campaign.json --output run/campaign-report.json
+```
+
+预期：请求2个产品、交付2个，snapshot 与 deep 各得一张互不重复的帧；报告 schema_version=2，含每产品 stack、variance_image、aperture_variances、measurement_order 与对称协方差方阵。暗场误差在产品间相关，协方差不会仅因帧不重叠而置零。
 
 成功退出0；业务质量提示或诊断不等于输入失败，见summary。非法输入或已有目标退出2，保留旧目标。JSON最多8MB，拒绝重复键、未知字段及非有限常量。先完整验证与计算，再同目录临时文件原子硬链接新建一个JSON报告。run/已忽略。
 
