@@ -1,0 +1,10 @@
+{
+  "batch_id": "batch-0003-retract",
+  "expected_revision": 2,
+  "add_darks": [],
+  "add_flats": [],
+  "add_releases": [],
+  "retract_releases": ["release-v2"],
+  "put_frames": [],
+  "withdraw_frames": []
+}

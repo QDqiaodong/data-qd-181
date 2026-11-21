@@ -48,8 +48,57 @@ def precompute(data, width, height, frames, usable):
             "dark_exposure": dark_exposure}
 
 
-def _aperture_records(precomp, aperture, eligible_ids):
-    """Per eligible frame: output pixel -> (detector x, detector y, exposure, qf term, dark h)."""
+def precompute_bound(width, height, frames, bindings, masters):
+    """Binding-aware counterpart of precompute(): every frame selects its own
+    dark/flat/mask through bindings[frame_id], and the dark random-source
+    identity carried in each contribution is (dark_id, detector_x, detector_y).
+    """
+    per_frame = {}
+    for frame_id in sorted(frames):
+        frame = frames[frame_id]
+        binding = bindings[frame_id]
+        dark_id = binding["dark_id"]
+        dark = masters["darks"][dark_id]
+        flat_record = masters["flats"][binding["flat_id"]]
+        mean_flat = flat_record["mean_flat"]
+        dark_exposure = dark["dark_exposure_s"]
+        audit = {"frame_id": frame_id, "accepted_pixels": 0, "masked_pixels": 0,
+                 "zero_flat_pixels": 0, "saturated_pixels": 0, "outside_pixels": 0}
+        contributions = []
+        for y in range(height):
+            for x in range(width):
+                if flat_record["bad_mask"][y][x]:
+                    audit["masked_pixels"] += 1
+                    continue
+                flat = flat_record["flat"][y][x]
+                if flat == 0:
+                    audit["zero_flat_pixels"] += 1
+                    continue
+                pixel = frame["pixels"][y][x]
+                if pixel >= frame["saturation"]:
+                    audit["saturated_pixels"] += 1
+                    continue
+                out_x, out_y = x + frame["dx"], y + frame["dy"]
+                if not (0 <= out_x < width and 0 <= out_y < height):
+                    audit["outside_pixels"] += 1
+                    continue
+                exposure = frame["exposure_s"]
+                dark_rate = Fraction(dark["dark"][y][x], dark_exposure)
+                cal_rate = (Fraction(pixel, exposure) - dark_rate) * mean_flat / flat
+                flat_factor = mean_flat / flat
+                qf_term = Fraction(frame["variance"][y][x]) * flat_factor ** 2
+                dark_h = mean_flat / (flat * dark_exposure)
+                contributions.append((out_x, out_y, x, y, exposure, cal_rate,
+                                      qf_term, dark_h, flat,
+                                      frame["variance"][y][x],
+                                      dark["dark_variance"][y][x], dark_id))
+                audit["accepted_pixels"] += 1
+        per_frame[frame_id] = {"audit": audit, "contributions": contributions}
+    return {"frames": per_frame}
+
+
+def _aperture_records_generic(precomp, aperture, eligible_ids, source_of):
+    """Per eligible frame: output pixel -> (source id, exposure, qf term, dark h)."""
     disk = nominal_disk(aperture)
     width = aperture["_width"]
     height = aperture["_height"]
@@ -61,12 +110,19 @@ def _aperture_records(precomp, aperture, eligible_ids):
             out_x, out_y, det_x, det_y, exposure, _cal, qf_term, dark_h = \
                 contribution[:8]
             if (out_x, out_y) in inside:
-                per_output[(out_x, out_y)] = (det_x, det_y, exposure, qf_term, dark_h)
+                per_output[(out_x, out_y)] = (
+                    source_of(contribution), exposure, qf_term, dark_h)
         records[frame_id] = per_output
     return disk, inside, records
 
 
-def _evaluate(aperture, requirement, subset, records, dark_variance):
+def _aperture_records(precomp, aperture, eligible_ids):
+    """Legacy single-calibration view keyed by detector coordinates."""
+    return _aperture_records_generic(
+        precomp, aperture, eligible_ids, lambda contribution: (contribution[2], contribution[3]))
+
+
+def _evaluate_generic(aperture, requirement, subset, records, variance_of):
     """Exact rational aperture variance for a frame subset; None when undeliverable."""
     disk, inside, _ = records
     if len(inside) != len(disk):
@@ -74,18 +130,19 @@ def _evaluate(aperture, requirement, subset, records, dark_variance):
     per_output = {}
     for frame_id in subset:
         for output, entry in records[2][frame_id].items():
-            det_x, det_y, exposure, qf_term, dark_h = entry
+            source, exposure, qf_term, dark_h = entry
             accum = per_output.get(output)
             if accum is None:
                 accum = [0, Fraction(0), {}]
                 per_output[output] = accum
             accum[0] += exposure
             accum[1] += qf_term
-            dark_accum = accum[2].get((det_x, det_y))
+            dark_accum = accum[2].get(source)
             if dark_accum is None:
-                accum[2][(det_x, det_y)] = (exposure, dark_h)
+                # store the accumulated numerator sum(dark_h * exposure) per source
+                accum[2][source] = dark_h * exposure
             else:
-                accum[2][(det_x, det_y)] = (dark_accum[0] + exposure, dark_h)
+                accum[2][source] = dark_accum + dark_h * exposure
     minimum = requirement["min_exposure_s"]
     for output in inside:
         if output not in per_output or per_output[output][0] < minimum:
@@ -95,37 +152,56 @@ def _evaluate(aperture, requirement, subset, records, dark_variance):
     for output, (total_exposure, raw_accum, dark_accum) in per_output.items():
         e_squared = Fraction(total_exposure) ** 2
         raw_variance += raw_accum / e_squared
-        for source, (local_exposure, dark_h) in dark_accum.items():
-            g = dark_h * Fraction(local_exposure, total_exposure)
+        for source, numerator in dark_accum.items():
+            g = numerator / total_exposure
             dark_g[source] = dark_g.get(source, Fraction(0)) + g
     dark_term = Fraction(0)
-    for (x, y), g in dark_g.items():
-        dark_term += Fraction(dark_variance[y][x]) * g ** 2
+    for source, g in dark_g.items():
+        dark_term += Fraction(variance_of(source)) * g ** 2
     variance = raw_variance + dark_term
     if variance > requirement["max_variance"]:
         return None
     return variance
 
 
-def feasible_subsets(product, eligible_ids, aperture_map, precomp, dark_variance):
-    """All frame subsets (sorted id tuples) that deliver the product, size then id order."""
+def _evaluate(aperture, requirement, subset, records, dark_variance):
+    """Legacy single-dark-matrix evaluation."""
+    return _evaluate_generic(
+        aperture, requirement, subset, records,
+        lambda source: dark_variance[source[1]][source[0]])
+
+
+def feasible_subsets_generic(product, eligible_ids, aperture_map, precomp,
+                             variance_of, source_of):
+    """All frame subsets (sorted id tuples) that deliver the product, with an
+    arbitrary per-frame calibration binding; variance/source identity are
+    resolved through the supplied callbacks."""
     options = []
     prepared = []
     for requirement in product["requirements"]:
         aperture = aperture_map[requirement["aperture_id"]]
-        records = _aperture_records(precomp, aperture, eligible_ids)
+        records = _aperture_records_generic(precomp, aperture, eligible_ids, source_of)
         prepared.append((aperture, requirement, records))
     ordered = sorted(eligible_ids)
     for size in range(1, min(product["max_frames"], len(ordered)) + 1):
         for subset in combinations(ordered, size):
             ok = True
             for aperture, requirement, records in prepared:
-                if _evaluate(aperture, requirement, subset, records, dark_variance) is None:
+                if _evaluate_generic(aperture, requirement, subset, records,
+                                     variance_of) is None:
                     ok = False
                     break
             if ok:
                 options.append(subset)
     return options
+
+
+def feasible_subsets(product, eligible_ids, aperture_map, precomp, dark_variance):
+    """All frame subsets (sorted id tuples) that deliver the product, size then id order."""
+    return feasible_subsets_generic(
+        product, eligible_ids, aperture_map, precomp,
+        lambda source: dark_variance[source[1]][source[0]],
+        lambda contribution: (contribution[2], contribution[3]))
 
 
 def _prepare_requirements(product, aperture_map, precomp, eligible_ids, dark_variance):
@@ -323,8 +399,8 @@ def minimal_feasible_masks(product, eligible_ids, aperture_map, precomp,
     return minimal_masks
 
 
-def assign(products, frames, aperture_map, precomp, dark_variance):
-    """Exact optimal disjoint delivery via frame-bitmask dynamic programming.
+def _assign_with_options(products, frames, options_by_product):
+    """Exact optimal disjoint delivery via frame-id bitmask dynamic programming.
 
     Per product only inclusion-minimal feasible subsets are retained: a strict
     superset costs at least as much exposure and blocks strictly more frames,
@@ -339,12 +415,7 @@ def assign(products, frames, aperture_map, precomp, dark_variance):
     frame_cost = [frames[frame_id]["exposure_s"] for frame_id in all_frame_ids]
     options = {}
     for product_id in product_ids:
-        product = products[product_id]
-        eligible_ids = [frame_id for frame_id in all_frame_ids
-                        if product["start_s"] <= frames[frame_id]["observed_at_s"]
-                        < product["end_s"]]
-        options[product_id] = minimal_feasible_masks(
-            product, eligible_ids, aperture_map, precomp, dark_variance, bit_of)
+        options[product_id] = options_by_product(product_id)
 
     subset_cost = {}
     subset_signature = {}
@@ -395,8 +466,52 @@ def assign(products, frames, aperture_map, precomp, dark_variance):
     return assignment
 
 
-def stack(product_frames, precomp, data, width, height, apertures, required_apertures):
-    """Build the schema v1 stack, variance image and aperture uncertainty for one product."""
+def assign_generic(products, frames, aperture_map, precomp, variance_of, source_of):
+    """Optimal disjoint delivery for per-frame calibration bindings."""
+    all_frame_ids = sorted(frames)
+
+    def options_for(product_id):
+        product = products[product_id]
+        eligible_ids = [frame_id for frame_id in all_frame_ids
+                        if product["start_s"] <= frames[frame_id]["observed_at_s"]
+                        < product["end_s"]]
+        minimal_masks = []
+        bit_of = {frame_id: 1 << index for index, frame_id in enumerate(all_frame_ids)}
+        for subset in feasible_subsets_generic(
+                product, eligible_ids, aperture_map, precomp,
+                variance_of, source_of):
+            mask = 0
+            for frame_id in subset:
+                mask |= bit_of[frame_id]
+            if any((mask & found) == found for found in minimal_masks):
+                continue
+            minimal_masks.append(mask)
+        minimal_masks.sort()
+        return minimal_masks
+
+    return _assign_with_options(products, frames, options_for)
+
+
+def assign(products, frames, aperture_map, precomp, dark_variance):
+    """Legacy single-calibration optimal assignment."""
+    all_frame_ids = sorted(frames)
+    bit_of = {frame_id: 1 << index for index, frame_id in enumerate(all_frame_ids)}
+
+    def options_for(product_id):
+        product = products[product_id]
+        eligible_ids = [frame_id for frame_id in all_frame_ids
+                        if product["start_s"] <= frames[frame_id]["observed_at_s"]
+                        < product["end_s"]]
+        return minimal_feasible_masks(
+            product, eligible_ids, aperture_map, precomp, dark_variance, bit_of)
+
+    return _assign_with_options(products, frames, options_for)
+
+
+def stack_generic(product_frames, precomp, width, height, apertures,
+                  required_apertures, variance_of, source_of):
+    """Build the schema v1 stack, variance image and aperture uncertainty for
+    one product under arbitrary per-frame calibration bindings."""
     weighted = [[Fraction(0) for _ in range(width)] for _ in range(height)]
     exposure = [[0 for _ in range(width)] for _ in range(height)]
     counts = [[0 for _ in range(width)] for _ in range(height)]
@@ -413,12 +528,12 @@ def stack(product_frames, precomp, data, width, height, apertures, required_aper
             exposure[out_y][out_x] += frame_exposure
             counts[out_y][out_x] += 1
             raw_accum[out_y][out_x] += qf_term
-            source = (det_x, det_y)
+            source = source_of(contribution)
             previous = dark_accum[out_y][out_x].get(source)
             if previous is None:
-                dark_accum[out_y][out_x][source] = (frame_exposure, dark_h)
+                dark_accum[out_y][out_x][source] = dark_h * frame_exposure
             else:
-                dark_accum[out_y][out_x][source] = (previous[0] + frame_exposure, dark_h)
+                dark_accum[out_y][out_x][source] = previous + dark_h * frame_exposure
     image = [[weighted[y][x] / exposure[y][x] if exposure[y][x] else None
               for x in range(width)] for y in range(height)]
     variance_image = [[None for _ in range(width)] for _ in range(height)]
@@ -436,20 +551,19 @@ def stack(product_frames, precomp, data, width, height, apertures, required_aper
             total = Fraction(exposure[y][x])
             qf = raw_accum[y][x] / total ** 2
             qd = Fraction(0)
-            for (det_x, det_y), (local_exposure, dark_h) in dark_accum[y][x].items():
-                g = dark_h * Fraction(local_exposure, total)
-                qd += Fraction(data["campaign"]["dark_variance"][det_y][det_x]) * g ** 2
+            for source, numerator in dark_accum[y][x].items():
+                g = numerator / total
+                qd += Fraction(variance_of(source)) * g ** 2
             variance_image[y][x] = qf + qd
             for aperture_id in required_apertures:
                 if (x, y) in disk_sets[aperture_id]:
                     uncertainty = aperture_uncertainty[aperture_id]
                     uncertainty["raw"] += qf
                     uncertainty["output_qf"][(x, y)] = qf
-                    for (det_x, det_y), (local_exposure, dark_h) \
-                            in dark_accum[y][x].items():
-                        g = dark_h * Fraction(local_exposure, total)
-                        uncertainty["dark_g"][(det_x, det_y)] = \
-                            uncertainty["dark_g"].get((det_x, det_y), Fraction(0)) + g
+                    for source, numerator in dark_accum[y][x].items():
+                        g = numerator / total
+                        uncertainty["dark_g"][source] = \
+                            uncertainty["dark_g"].get(source, Fraction(0)) + g
     measurements = measure(image, apertures)
     stack = {"rate_image": [[str(v) if v is not None else None for v in row] for row in image],
              "exposure_s": exposure, "contributor_count": counts, "frame_audit": audits,
@@ -461,8 +575,20 @@ def stack(product_frames, precomp, data, width, height, apertures, required_aper
     return stack, variance_image, aperture_uncertainty
 
 
-def covariance_matrix(order, deliveries, dark_variance):
-    """Square exact covariance matrix for requirement measurements in measurement order."""
+def stack(product_frames, precomp, data, width, height, apertures, required_apertures):
+    """Legacy single-calibration product stack."""
+    return stack_generic(
+        product_frames, precomp, width, height, apertures, required_apertures,
+        lambda source: data["campaign"]["dark_variance"][source[1]][source[0]],
+        lambda contribution: (contribution[2], contribution[3]))
+
+
+def covariance_matrix_generic(order, deliveries, variance_of):
+    """Square exact covariance matrix for requirement measurements in order.
+
+    Dark-source keys are resolved through variance_of; raw-frame terms are
+    shared only between measurements of the same product.
+    """
     size = len(order)
     matrix = [[Fraction(0) for _ in range(size)] for _ in range(size)]
     for i in range(size):
@@ -470,10 +596,10 @@ def covariance_matrix(order, deliveries, dark_variance):
             left = deliveries[order[i]]
             right = deliveries[order[j]]
             value = Fraction(0)
-            for (x, y), g in left["dark_g"].items():
-                other = right["dark_g"].get((x, y))
+            for source, g in left["dark_g"].items():
+                other = right["dark_g"].get(source)
                 if other is not None:
-                    value += Fraction(dark_variance[y][x]) * g * other
+                    value += Fraction(variance_of(source)) * g * other
             if order[i][0] == order[j][0]:
                 for output, qf in left["output_qf"].items():
                     if output in right["output_qf"]:
@@ -481,3 +607,10 @@ def covariance_matrix(order, deliveries, dark_variance):
             matrix[i][j] = value
             matrix[j][i] = value
     return matrix
+
+
+def covariance_matrix(order, deliveries, dark_variance):
+    """Legacy covariance matrix keyed by detector coordinates."""
+    return covariance_matrix_generic(
+        order, deliveries,
+        lambda source: dark_variance[source[1]][source[0]])

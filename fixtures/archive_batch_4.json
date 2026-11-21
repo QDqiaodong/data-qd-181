@@ -1,0 +1,13 @@
+{
+  "batch_id": "batch-0004-half-window",
+  "expected_revision": 3,
+  "add_darks": [],
+  "add_flats": [],
+  "add_releases": [
+    {"id": "release-v3-half", "version": 3, "start_s": 0, "end_s": 50,
+     "dark_id": "dark-zero", "flat_id": "flat-unit"}
+  ],
+  "retract_releases": [],
+  "put_frames": [],
+  "withdraw_frames": []
+}

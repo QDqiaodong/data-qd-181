@@ -1,0 +1,22 @@
+{
+  "batch_id": "batch-0001-bootstrap",
+  "expected_revision": 0,
+  "add_darks": [
+    {"id": "dark-zero", "dark_exposure_s": 1, "dark": [[0]], "dark_variance": [[1]]},
+    {"id": "dark-two", "dark_exposure_s": 1, "dark": [[2]], "dark_variance": [[4]]}
+  ],
+  "add_flats": [
+    {"id": "flat-unit", "flat": [[1]], "bad_mask": [[false]]}
+  ],
+  "add_releases": [
+    {"id": "release-v1", "version": 1, "start_s": 0, "end_s": 100,
+     "dark_id": "dark-zero", "flat_id": "flat-unit"}
+  ],
+  "retract_releases": [],
+  "put_frames": [
+    {"id": "frame-alpha", "exposure_s": 1, "dx": 0, "dy": 0, "saturation": 100,
+     "pixels": [[10]], "observed_at_s": 10, "variance": [[0]],
+     "expected_version": 0}
+  ],
+  "withdraw_frames": []
+}

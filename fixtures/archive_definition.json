@@ -1,0 +1,20 @@
+{
+  "dataset_id": "demo-archive",
+  "width": 1,
+  "height": 1,
+  "apertures": [
+    {"id": "a", "x": 0, "y": 0, "radius": 0}
+  ],
+  "products": [
+    {
+      "id": "snapshot",
+      "start_s": 0,
+      "end_s": 100,
+      "priority": 1,
+      "max_frames": 1,
+      "requirements": [
+        {"aperture_id": "a", "min_exposure_s": 1, "max_variance": "2"}
+      ]
+    }
+  ]
+}

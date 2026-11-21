@@ -1,0 +1,13 @@
+{
+  "batch_id": "batch-0002-recalibrate",
+  "expected_revision": 1,
+  "add_darks": [],
+  "add_flats": [],
+  "add_releases": [
+    {"id": "release-v2", "version": 2, "start_s": 0, "end_s": 100,
+     "dark_id": "dark-two", "flat_id": "flat-unit"}
+  ],
+  "retract_releases": [],
+  "put_frames": [],
+  "withdraw_frames": []
+}
