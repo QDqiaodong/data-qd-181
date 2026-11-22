@@ -5,4 +5,5 @@
 - archive_definition.json 与 archive_batch_1..4.json：schema_version=3 本地校准档案的可复现批次序列。单像素 1×1 档案，先后演示初始绑定、补发高版本 release 更换暗场（信号 10→8、方差 1→4 并触发产品 max_variance=2 的可交付性翻转）、撤销高版本（帧阻断且不回退）、半段时间窗补发恢复。每个批次都可独立重放，旧修订可重复渲染。
 - discovery_definition.json、discovery_config.json 与 discovery_batch_1..3.json：时序发现工作区的可复现样例。单像素三帧 a=10、b=12、c=14，暗场方差 0、原始方差 1；批次 2 把 b 更正为 20（b/c 触发、两 discover、参考只剩 a），批次 3 恢复 b=12（两 retract、参考恢复 c）。与 astro-discovery 的 initialize/advance/snapshot/pending/ack 配套使用。
 - sky_definition.json、sky_batch_1.json 与 sky_spec.json：schema_version=4 空间背景模型的可复现样例。3×3 画幅、单帧 a，中心 10 与四臂 12/8/13/7 的原始计数方差均为 1、暗场方差 0；唯一空天样本是中心 (1,1)。半径 1 的 star 孔径背景目标可估计、扣背景积分恰为 0、方差 20；半径 0 的 arm 孔径覆盖完整但背景目标不可估计。与 astro-sky 的 --archive/--revision/--spec/--output 配套使用。
+- release_archive_definition.json、release_archive_batch_1.json、release_request.json、release_license.json 与 release_license_restricted.json：astro-release 离线发布包样例。2×1 经典档案，F 不平移、G 右移一格，单位平场、共享暗场 d（两格方差 4），原计数方差均为 1。无许可限制时速率 [10,25]、方差 [5,5/2]、区域和 35、区域方差 23/2；受限许可禁止 G 当前版本探测器 (0,0) 后第二格只交付 withheld 状态。与 astro-release 的 issue/export/verify 配套使用。
 

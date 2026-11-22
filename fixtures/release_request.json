@@ -1,0 +1,6 @@
+{
+  "request_id": "example-release-0001",
+  "dataset_id": "demo-release",
+  "revision": 1,
+  "region": {"x0": 0, "y0": 0, "x1": 2, "y1": 1}
+}

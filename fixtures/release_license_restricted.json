@@ -1,0 +1,6 @@
+{
+  "dataset_id": "demo-release",
+  "denied": [
+    {"frame_id": "G", "frame_version": 1, "x": 0, "y": 0}
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "batch_id": "release-bootstrap",
+  "expected_revision": 0,
+  "add_darks": [
+    {"id": "dark-d", "dark_exposure_s": 1,
+     "dark": [[0, 0]], "dark_variance": [[4, 4]]}
+  ],
+  "add_flats": [
+    {"id": "flat-unit", "flat": [[1, 1]], "bad_mask": [[false, false]]}
+  ],
+  "add_releases": [
+    {"id": "release-r1", "version": 1, "start_s": 0, "end_s": 100,
+     "dark_id": "dark-d", "flat_id": "flat-unit"}
+  ],
+  "retract_releases": [],
+  "put_frames": [
+    {"id": "F", "exposure_s": 1, "dx": 0, "dy": 0, "saturation": 1000,
+     "pixels": [[10, 20]], "observed_at_s": 5, "variance": [[1, 1]],
+     "expected_version": 0},
+    {"id": "G", "exposure_s": 1, "dx": 1, "dy": 0, "saturation": 1000,
+     "pixels": [[30, 40]], "observed_at_s": 5, "variance": [[1, 1]],
+     "expected_version": 0}
+  ],
+  "withdraw_frames": []
+}

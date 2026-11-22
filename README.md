@@ -116,6 +116,35 @@ seq 3、4 两个 retract，最终参考恢复 c。`--pending N` 可分段重读�
 最终扣背景方差（含与拟合的相关抵消）重新判断。字段、样本身份、失败边界与报告结构详见
 [空间背景契约](docs/sky_contract.md)。
 
+## 离线可复算发布包
+
+`astro_stack.release` 与 `astro-release` 在不改变任何既有入口的前提下，从经典档案的固定
+修订交付一块科学图像及离线复算所需的最小证据，仅用标准库：
+
+```sh
+.venv/bin/astro-archive --archive run/release-archive \
+  --initialize fixtures/release_archive_definition.json
+.venv/bin/astro-archive --archive run/release-archive \
+  --apply fixtures/release_archive_batch_1.json
+.venv/bin/astro-release issue --library run/release-library \
+  --archive run/release-archive \
+  --request fixtures/release_request.json \
+  --license fixtures/release_license.json
+.venv/bin/astro-release export --library run/release-library \
+  --request-id example-release-0001 --output run/release-package.json
+.venv/bin/astro-release verify --package run/release-package.json \
+  --expected-sha256 <可信回执中的 sha256>
+```
+
+可复现样例是 2×1 两帧（F 不平移、G 右移一格，单位平场、共享暗场 d）：无许可限制时速率
+`[10, 25]`、方差 `[5, 5/2]`、区域和 35、区域方差 23/2。把
+`fixtures/release_license_restricted.json`（禁止 G 当前版本的探测器 (0,0)）配给新请求号后，
+第一格仍发布 10/5，第二格只交付 `withheld` 状态且不带任何样本证据，区域和与方差变为 10、5；
+禁止 G 的 (1,0) 不阻断任何格，因为该样本被平移到画幅外。verify 先核可信摘要，再从包内证据
+独立重算坐标映射、标定、曝光加权与含共享暗场相关性的误差传播；同号请求永久绑定同一包，许可
+替换与源档案移走都不影响已签发回执。包格式、状态语义、证据最小化与故障边界详见
+[发布契约](docs/release_contract.md)。
+
 ## 数据契约和边界
 
 这是自定义JSON教学图像模型，不读取FITS、不做自动配准或真实仪器绝对测光。 字段、单位、顺序及失败约定详见[契约](docs/contract.md)。
