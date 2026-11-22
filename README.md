@@ -92,6 +92,30 @@ seq 3、4 两个 retract，最终参考恢复 c。`--pending N` 可分段重读�
 孔径内像素相关性，全部运算为精确有理数。字段、阈值口径、事件身份、并发与崩溃恢复边界
 详见[发现契约](docs/discovery_contract.md)。
 
+## 空间背景模型与扣背景交付
+
+`astro_stack.sky` 与 `astro-sky` 在不改变上面任何入口的前提下，对一个固定档案修订用
+调用者指定的空天样本拟合修订内唯一的天空平面 `b(x,y)=beta0+beta_x*x+beta_y*y`，再用
+同一模型生成扣背景图像、孔径测光与实际交付产品，输出 schema_version=4 报告：
+
+```sh
+.venv/bin/astro-archive --archive run/sky-archive \
+  --initialize fixtures/sky_definition.json
+.venv/bin/astro-archive --archive run/sky-archive \
+  --apply fixtures/sky_batch_1.json
+.venv/bin/astro-sky --archive run/sky-archive \
+  --revision 1 --spec fixtures/sky_spec.json \
+  --output run/sky-report.json
+```
+
+可复现样例是 3×3 单帧：中心速率 10、四臂 12/8/13/7，五个原始计数方差均为 1、暗场方差 0，
+唯一空天样本为帧 a 的中心 (1,1)。半径 1 的 star 孔径背景目标可估计，扣背景积分恰为 0、
+方差 20；四个臂像素与半径 0 的 arm 孔径覆盖完整但背景目标不可估计，只给状态不给任意
+斜率值。秩、噪声支撑、可估计性与最小方差全部由精确有理数线性代数决定，允许奇异协方差、
+零噪声与秩不足；同一样本同时进入拟合和科学测量时保留完整相关传播，campaign 可行性按
+最终扣背景方差（含与拟合的相关抵消）重新判断。字段、样本身份、失败边界与报告结构详见
+[空间背景契约](docs/sky_contract.md)。
+
 ## 数据契约和边界
 
 这是自定义JSON教学图像模型，不读取FITS、不做自动配准或真实仪器绝对测光。 字段、单位、顺序及失败约定详见[契约](docs/contract.md)。

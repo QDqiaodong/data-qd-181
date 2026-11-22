@@ -12,6 +12,7 @@ dependencies = []
 astro-stack = "astro_stack.cli:main"
 astro-archive = "astro_stack.cli_archive:main"
 astro-discovery = "astro_stack.cli_discovery:main"
+astro-sky = "astro_stack.cli_sky:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
