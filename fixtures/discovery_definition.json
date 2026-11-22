@@ -1,0 +1,9 @@
+{
+  "dataset_id": "demo-discovery",
+  "width": 1,
+  "height": 1,
+  "apertures": [
+    {"id": "a", "x": 0, "y": 0, "radius": 0}
+  ],
+  "products": null
+}

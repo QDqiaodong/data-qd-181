@@ -1,0 +1,14 @@
+{
+  "batch_id": "discovery-batch-2-correct-b",
+  "expected_revision": 1,
+  "add_darks": [],
+  "add_flats": [],
+  "add_releases": [],
+  "retract_releases": [],
+  "put_frames": [
+    {"id": "frame-b", "exposure_s": 1, "dx": 0, "dy": 0, "saturation": 100,
+     "pixels": [[20]], "observed_at_s": 2, "variance": [[1]],
+     "expected_version": 1}
+  ],
+  "withdraw_frames": []
+}

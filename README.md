@@ -61,6 +61,37 @@ create-only 发布语义，不改变上面两种既有模式：
 结果与当时交付一致。字段、状态机、重试身份、并发与崩溃恢复边界详见
 [档案契约](docs/archive_contract.md)。
 
+## 时序瞬变发现
+
+`astro-discovery` 与 `astro_stack.discovery` 在不改变上面任何入口的前提下，对一个固定
+档案修订做逐曝光瞬变发现，并维护不被已发现事件污染的参考图像与可确认本地事件队列。
+科学输入只来自已有档案的固定修订，复用档案的逐帧校准选择与原始事实，调用者无需另写
+速率、方差或绑定表；经典与 campaign 档案均可作为来源，且对所有 ready 原始帧做时序分析
+（来源 products 不参与选帧）。
+
+```sh
+.venv/bin/astro-archive --archive run/discovery-archive \
+  --initialize fixtures/discovery_definition.json
+.venv/bin/astro-archive --archive run/discovery-archive \
+  --apply fixtures/discovery_batch_1.json
+.venv/bin/astro-discovery --workspace run/discovery-workspace \
+  --initialize fixtures/discovery_config.json --archive run/discovery-archive
+.venv/bin/astro-discovery --workspace run/discovery-workspace --advance 1
+.venv/bin/astro-discovery --workspace run/discovery-workspace \
+  --snapshot --output run/discovery-snapshot.json
+```
+
+可复现样例是三帧 a=10、b=12、c=14（单像素、flat=1、暗场均值 0、曝光均 1、原始方差 1、
+暗场方差 0），配置 bootstrap=容量=1、`min_abs_delta="1"`、`sigma_squared="4"`。修订 1
+时 a 为 bootstrap，b/c 均 quiet（差值 2、方差 2），最终参考只有 c；批次 2 把 b 更正为 20
+后，b、c 都相对 a 触发（差值 10 与 4、方差 2），整帧不进参考，发出 seq 1、2 两个
+discover，最终参考只有 a；批次 3 把 b 恢复为 12 后，即使前两条 discover 尚未确认，也追加
+seq 3、4 两个 retract，最终参考恢复 c。`--pending N` 可分段重读而不消费事件，`--ack K`
+持久推进确认游标；已处理修订的精确重试返回原回执、不重发事件。参考产品按成员原始贡献的
+局部有效曝光加权生成，差值方差精确计入共享暗场（按 `dark_id, 探测器坐标` 认同身份）与
+孔径内像素相关性，全部运算为精确有理数。字段、阈值口径、事件身份、并发与崩溃恢复边界
+详见[发现契约](docs/discovery_contract.md)。
+
 ## 数据契约和边界
 
 这是自定义JSON教学图像模型，不读取FITS、不做自动配准或真实仪器绝对测光。 字段、单位、顺序及失败约定详见[契约](docs/contract.md)。

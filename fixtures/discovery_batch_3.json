@@ -1,0 +1,14 @@
+{
+  "batch_id": "discovery-batch-3-restore-b",
+  "expected_revision": 2,
+  "add_darks": [],
+  "add_flats": [],
+  "add_releases": [],
+  "retract_releases": [],
+  "put_frames": [
+    {"id": "frame-b", "exposure_s": 1, "dx": 0, "dy": 0, "saturation": 100,
+     "pixels": [[12]], "observed_at_s": 2, "variance": [[1]],
+     "expected_version": 2}
+  ],
+  "withdraw_frames": []
+}

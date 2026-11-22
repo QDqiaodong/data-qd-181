@@ -1,0 +1,8 @@
+{
+  "aperture_ids": ["a"],
+  "bootstrap_frames": 1,
+  "reference_capacity": 1,
+  "min_exposure_s": 1,
+  "min_abs_delta": "1",
+  "sigma_squared": "4"
+}
