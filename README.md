@@ -145,6 +145,33 @@ seq 3、4 两个 retract，最终参考恢复 c。`--pending N` 可分段重读�
 替换与源档案移走都不影响已签发回执。包格式、状态语义、证据最小化与故障边界详见
 [发布契约](docs/release_contract.md)。
 
+## 亚像素巡天拼图
+
+`astro_stack.mosaic` 与 `astro-mosaic` 在不改变任何既有入口的前提下，把若干晚各自存放在
+经典档案中的曝光按调用者给定的公共坐标原点与逐帧亚像素修正拼成一张新图，并对请求矩形给出
+区域测光，输出 schema_version=1 报告：
+
+```sh
+.venv/bin/astro-archive --archive run/mosaic-archive-a \
+  --initialize fixtures/mosaic_definition_a.json
+.venv/bin/astro-archive --archive run/mosaic-archive-b \
+  --initialize fixtures/mosaic_definition_b.json
+.venv/bin/astro-archive --archive run/mosaic-archive-a \
+  --apply fixtures/mosaic_batch_a1.json
+.venv/bin/astro-archive --archive run/mosaic-archive-b \
+  --apply fixtures/mosaic_batch_b1.json
+.venv/bin/astro-mosaic --spec fixtures/mosaic_spec.json \
+  --output run/mosaic-report.json
+```
+
+可复现样例是两个一像素档案 night-a（计数 10，原点 (0,0)）与 night-b（计数 30，原点
+(1/2,0)），曝光均 1、原始方差均 1、单位平场、暗场计数零、同名 dark_id 的暗场方差均 4
+（两档案不共享噪声）。格网 [0,2)×[0,1)、min_visits=1 时：左格合格面积 1、积分 15、方差
+25/8，右格合格面积 1/2、积分 15、方差 5/4；区域 L/W/C 完整，积分 15/30/20，L 与 W 的
+协方差为 15/4。每个通过判废的探测器样本直接投影到公共平面，逐点按实际覆盖 visit 数与
+局部曝光分母求速率并积分；坐标相隔很远也不会枚举空天。字段、坐标字符串、覆盖与误差口径、
+失败边界详见[拼图契约](docs/mosaic_contract.md)。
+
 ## 数据契约和边界
 
 这是自定义JSON教学图像模型，不读取FITS、不做自动配准或真实仪器绝对测光。 字段、单位、顺序及失败约定详见[契约](docs/contract.md)。

@@ -1,0 +1,27 @@
+{
+  "sources": [
+    {
+      "archive": "run/mosaic-archive-a",
+      "dataset_id": "night-a",
+      "revision": 1,
+      "origin_x": "0",
+      "origin_y": "0",
+      "offsets": []
+    },
+    {
+      "archive": "run/mosaic-archive-b",
+      "dataset_id": "night-b",
+      "revision": 1,
+      "origin_x": "1/2",
+      "origin_y": "0",
+      "offsets": []
+    }
+  ],
+  "grid": {"x0": "0", "y0": "0", "width": 2, "height": 1},
+  "regions": [
+    {"id": "L", "x0": "0", "y0": "0", "x1": "1", "y1": "1"},
+    {"id": "W", "x0": "0", "y0": "0", "x1": "3/2", "y1": "1"},
+    {"id": "C", "x0": "1/4", "y0": "0", "x1": "5/4", "y1": "1"}
+  ],
+  "min_visits": 1
+}

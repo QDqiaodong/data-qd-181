@@ -1,0 +1,37 @@
+{
+  "batch_id": "mosaic-a-batch-1",
+  "expected_revision": 0,
+  "add_darks": [
+    {
+      "id": "d0",
+      "dark_exposure_s": 1,
+      "dark": [[0]],
+      "dark_variance": [[4]]
+    }
+  ],
+  "add_flats": [
+    {
+      "id": "f0",
+      "flat": [[1]],
+      "bad_mask": [[false]]
+    }
+  ],
+  "add_releases": [
+    {"id": "r1", "version": 1, "start_s": 0, "end_s": 100, "dark_id": "d0", "flat_id": "f0"}
+  ],
+  "retract_releases": [],
+  "put_frames": [
+    {
+      "id": "f",
+      "exposure_s": 1,
+      "dx": 0,
+      "dy": 0,
+      "saturation": 100,
+      "pixels": [[10]],
+      "observed_at_s": 5,
+      "variance": [[1]],
+      "expected_version": 0
+    }
+  ],
+  "withdraw_frames": []
+}
